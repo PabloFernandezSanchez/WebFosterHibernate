@@ -66,11 +66,8 @@ public class Controller extends HttpServlet {
                         int i = Integer.parseInt(request.getParameter("i"));
                         Set productos = categorias.get(i).getProductos();
                         for (Iterator itt = productos.iterator();itt.hasNext();){
-                            Producto p=(Producto) itt.next();
-                            productos2.add(p);
+                            productos2.add((Producto) itt.next());
                         }
-
-
                         
 			session.setAttribute("productos", productos2);
 			session.setAttribute("categoria", categorias.get(i).getNombre());
