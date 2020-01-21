@@ -16,6 +16,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import org.hibernate.Query;
 import org.hibernate.Session;
+import org.hibernate.Transaction;
 
 import pojos.Categoria;
 import pojos.Producto;
@@ -52,7 +53,7 @@ public class Controller extends HttpServlet {
 		String op = request.getParameter("op");
 		RequestDispatcher dispatcher;
                 List<Categoria> categorias;
-                ArrayList<Producto> productos2 = new ArrayList<Producto>();
+                ArrayList<Producto> productos = new ArrayList<Producto>();
                 Session singelton = HibernateUtil.getSessionFactory().openSession();
 		if (op.equals("inicio")) {
 			Query q = singelton.createQuery("from Categoria"); 
@@ -64,35 +65,54 @@ public class Controller extends HttpServlet {
 		} else if (op.equals("dameproductos")) {
 			categorias = (List<Categoria>) session.getAttribute("categorias");
                         int i = Integer.parseInt(request.getParameter("i"));
-                        Set productos = categorias.get(i).getProductos();
-                        for (Iterator itt = productos.iterator();itt.hasNext();){
-                            productos2.add((Producto) itt.next());
+                        Set productoset = categorias.get(i).getProductos();
+                        for (Iterator itt = productoset.iterator();itt.hasNext();){
+                            productos.add((Producto) itt.next());
                         }
                         
-			session.setAttribute("productos", productos2);
+			session.setAttribute("productos", productos);
 			session.setAttribute("categoria", categorias.get(i).getNombre());
 			dispatcher = request.getRequestDispatcher("platos.jsp");
 			dispatcher.forward(request, response);		
 		} else  if (op.equals("detail")) {
-			//i = Integer.parseInt(request.getParameter("i"));
-			//productos = (ArrayList<Producto>) session.getAttribute("productos");
-			//producto = productos.get(i);
-			//estrellas = new DAOPunto().getPuntos(producto.getId());
-			//session.setAttribute("producto", producto);
-			//session.setAttribute("estrellas", estrellas);
-			//dispatcher = request.getRequestDispatcher("detail.jsp");
-			//dispatcher.forward(request, response);		
+			int i = Integer.parseInt(request.getParameter("i"));
+			productos = (ArrayList<Producto>) session.getAttribute("productos");
+			Producto p = productos.get(i);
+                        Set puntoset = p.getPuntos();
+                        double cont=0, suma=0;
+                        int oper;
+                        for (Iterator itt = puntoset.iterator();itt.hasNext();){
+                            Punto pun = (Punto) itt.next();
+                            cont++;
+                            suma += pun.getPuntos();
+                        }
+                        if(cont!=0){
+                             oper = (int) Math.round(suma/cont);
+                        }else{
+                            oper =0;
+                        }
+                        
+			session.setAttribute("producto", p);
+			session.setAttribute("estrellas", oper);
+			dispatcher = request.getRequestDispatcher("detail.jsp");
+			dispatcher.forward(request, response);		
 		} else  if (op.equals("rating")) {
-			//producto = (Producto)session.getAttribute("producto");
-			//int puntos = Integer.parseInt(request.getParameter("rating"));
-			//Punto punto = new Punto();
-			//punto.setIdproducto(producto.getId());
-			//punto.setPuntos(puntos);
-			//new DAOPunto().addPunto(punto);
-			//estrellas = new DAOPunto().getPuntos(producto.getId());
-			//session.setAttribute("estrellas", estrellas);
-			//dispatcher = request.getRequestDispatcher("detail.jsp");
-			//dispatcher.forward(request, response);		
+                        Short rating = Short.parseShort(request.getParameter("rating"));
+                        Producto producto = (Producto) session.getAttribute("producto");
+                        Punto pun = new Punto(); //se puede hacer en una linea
+                        pun.setId(1);
+                        pun.setProducto(producto);
+                        pun.setPuntos(rating);
+                        Transaction t = singelton.beginTransaction();
+                        singelton.persist(pun);
+                        t.commit();
+                        Query q = singelton.createQuery("select round(avg(puntos)) from Punto where producto.id = "+producto.getId());
+                        List<Double> puntosList = (List<Double>) q.list();
+                        Double puntod = puntosList.get(0);
+                        int estrellas = puntod.intValue();
+			session.setAttribute("estrellas", estrellas);
+			dispatcher = request.getRequestDispatcher("detail.jsp");
+			dispatcher.forward(request, response);		
 		}
 		
 	}
